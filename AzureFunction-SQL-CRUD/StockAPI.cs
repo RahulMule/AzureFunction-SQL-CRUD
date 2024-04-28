@@ -19,6 +19,38 @@ namespace AzureFunction_SQL_CRUD
 			_logger = logger;
 		}
 
+		[Function("GetAllStock")]
+		public async Task<IActionResult> GetAllStock([HttpTrigger(AuthorizationLevel.Function, "get")] HttpRequest req)
+		{
+			string? connstring = Environment.GetEnvironmentVariable("connectionstring");
+			if (connstring == null)
+			{
+				return new BadRequestObjectResult("Connectionstring is empty");
+			}
+			var stocks = new List<Stock>();
+			using (SqlConnection conn = new SqlConnection(connstring))
+			{
+				SqlCommand cmd = new SqlCommand("Select * from dbo.Stocks order by StockId", conn);
+				await conn.OpenAsync();
+				using (var reader = await cmd.ExecuteReaderAsync())
+				{
+					while (reader.Read())
+					{
+						var stock = new Stock
+						{
+							StockId = reader.GetInt32(reader.GetOrdinal("StockId")),
+							StockName = reader.GetString(reader.GetOrdinal("StockName")),
+							Price = reader.GetDecimal(reader.GetOrdinal("Price"))
+						};
+						stocks.Add(stock);
+					}
+
+				}
+				return new OkObjectResult(stocks);
+
+			}
+		}
+
 		[Function("Create-Stock")]
 		public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req)
 		{
